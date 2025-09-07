@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "//var/run/docker.sock:/var/run/docker.sock:ro"
+
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: swiftlogistics
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  frontend:
+    image: nginx:alpine
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/ui`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+
+volumes:
+  db_data:
