@@ -1,43 +1,102 @@
-version: "3.9"
+version: "3.8"
+
+networks:
+  default:
+    name: swiftlogistics_default
 
 services:
   traefik:
     image: traefik:v2.10
+    container_name: swiftlogistics-traefik-1
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
     ports:
       - "80:80"
       - "8080:8080"
     volumes:
-      - "//var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - default
 
   db:
-    image: postgres:14
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: 123
-      POSTGRES_DB: swiftlogistics
-    ports:
-      - "5432:5432"
+    image: postgres:15
+    container_name: swiftlogistics-db-1
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - ./db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=swiftlogistics_db
+      - POSTGRES_USER=swiftuser
+      - POSTGRES_PASSWORD=swiftpassword
+    networks:
+      - default
 
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: swiftlogistics-rabbitmq-1
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - default
 
-  frontend:
-    image: nginx:alpine
+  cms_adapter:
+    build: ./cms_adapter
+    container_name: swiftlogistics-cms_adapter-1
+    environment:
+      - DATABASE_URL=postgresql://swiftuser:${POSTGRES_PASSWORD}@db:5432/swiftlogistics_db
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=PathPrefix(`/ui`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-    volumes:
-      - ./frontend:/usr/share/nginx/html:ro
+      - "traefik.http.routers.cms.rule=Host(`localhost`) && PathPrefix(`/cms`)"
+      - "traefik.http.routers.cms.entrypoints=web"
+      - "traefik.http.services.cms.loadbalancer.server.port=8000"
+    networks:
+      - default
 
-volumes:
-  db_data:
+  wms_adapter:
+    build: ./wms_adapter
+    container_name: swiftlogistics-wms_adapter-1
+    environment:
+      - DATABASE_URL=postgresql://swiftuser:${POSTGRES_PASSWORD}@db:5432/swiftlogistics_db
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wms.rule=Host(`localhost`) && PathPrefix(`/wms`)"
+      - "traefik.http.routers.wms.entrypoints=web"
+      - "traefik.http.services.wms.loadbalancer.server.port=8000"
+    networks:
+      - default
+
+  ros_adapter:
+    build: ./ros_adapter
+    container_name: swiftlogistics-ros_adapter-1
+    environment:
+      - DATABASE_URL=postgresql://swiftuser:${POSTGRES_PASSWORD}@db:5432/swiftlogistics_db
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ros.rule=Host(`localhost`) && PathPrefix(`/ros`)"
+      - "traefik.http.routers.ros.entrypoints=web"
+      - "traefik.http.services.ros.loadbalancer.server.port=8000"
+    networks:
+      - default
