@@ -1,43 +1,65 @@
-version: "3.9"
+version: '3.8'
 
 services:
   traefik:
     image: traefik:v2.10
     command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
     ports:
       - "80:80"
       - "8080:8080"
     volumes:
-      - "//var/run/docker.sock:/var/run/docker.sock:ro"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
   db:
-    image: postgres:14
+    image: postgres:15
+    restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: 123
-      POSTGRES_DB: swiftlogistics
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
 
   rabbitmq:
     image: rabbitmq:3-management
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     ports:
       - "5672:5672"
       - "15672:15672"
 
-  frontend:
-    image: nginx:alpine
+  cms_adapter:
+    build: ./cms_adapter
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=PathPrefix(`/ui`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-    volumes:
-      - ./frontend:/usr/share/nginx/html:ro
+      - "traefik.http.routers.cms_adapter.rule=PathPrefix(`/cms`)"
+      - "traefik.http.services.cms_adapter.loadbalancer.server.port=8000"
+      
+  ros_adapter:
+    build: ./ros_adapter
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ros_adapter.rule=PathPrefix(`/ros`)"
+      - "traefik.http.services.ros_adapter.loadbalancer.server.port=8000"
 
-volumes:
-  db_data:
+  wms_adapter:
+    build: ./wms_adapter
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTES_DB}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wms_adapter.rule=PathPrefix(`/wms`)"
+      - "traefik.http.services.wms_adapter.loadbalancer.server.port=8000"
