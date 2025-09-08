@@ -100,3 +100,24 @@ services:
       - "traefik.http.services.ros.loadbalancer.server.port=8000"
     networks:
       - default
+
+  order-service:
+    build: ./order_service
+    container_name: order-service
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://swiftuser:${POSTGRES_PASSWORD}@db:5432/swiftlogistics_db
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - ORDER_QUEUE=order_queue
+    depends_on:
+      - db
+      - rabbitmq
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.order-service.rule=PathPrefix(`/orders`)"
+      - "traefik.http.services.order-service.loadbalancer.server.port=8001"
+    networks:
+      - default
