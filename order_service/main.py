@@ -16,21 +16,30 @@ app = FastAPI(title="Order Service")
 # --- environment variables for configuration
 
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# --- environment variables for configuration
+DB_HOST = os.getenv("DB_HOST", "db")
+DB_NAME = os.getenv("POSTGRES_DB", "swiftlogistics_db")
+DB_USER = os.getenv("POSTGRES_USER", "swiftuser")
+DB_PASS = os.getenv("POSTGRES_PASSWORD", "swiftpassword")
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
 RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "guest")
 ORDER_QUEUE = os.getenv("ORDER_QUEUE", "order_queue")
 
+def get_db_conn():
+    return psycopg2.connect(
+        host=DB_HOST,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+
 # --- simple Order model
 class Order(BaseModel):
     customer_name: str
     product: str
     quantity: int
-
-def get_db_conn():
-    return psycopg2.connect(DATABASE_URL)
 
 # --- create table if missing on startup
 def init_db():

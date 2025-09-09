@@ -33,6 +33,7 @@ services:
     networks:
       - default
 
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: swiftlogistics-rabbitmq-1
@@ -107,11 +108,14 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql://swiftuser:${POSTGRES_PASSWORD}@db:5432/swiftlogistics_db
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASSWORD=guest
-      - ORDER_QUEUE=order_queue
+    - DB_HOST=db
+    - POSTGRES_DB=swiftlogistics_db
+    - POSTGRES_USER=swiftuser
+    - POSTGRES_PASSWORD=swiftpassword
+    - RABBITMQ_HOST=rabbitmq
+    - RABBITMQ_USER=guest
+    - RABBITMQ_PASSWORD=guest
+    - ORDER_QUEUE=order_queue
     depends_on:
       - db
       - rabbitmq
