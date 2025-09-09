@@ -2,4 +2,4 @@
 .env*
 
 # Ignore Postgres data
-db/
+.db/
