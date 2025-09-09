@@ -74,9 +74,13 @@ services:
     environment:
       - DATABASE_URL=postgresql://swiftuser:swiftpassword@db:5432/swiftlogistics_db
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - WMS_MOCK_URL=http://wms_mock:8000
+      - WMS_MOCK_TCP_HOST=wms_mock
+      - WMS_MOCK_TCP_PORT=9876
     depends_on:
       - db
       - rabbitmq
+      - wms_mock
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.wms.rule=Host(`localhost`) && PathPrefix(`/wms`)"
@@ -91,9 +95,11 @@ services:
     environment:
       - DATABASE_URL=postgresql://swiftuser:swiftpassword@db:5432/swiftlogistics_db
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - ROS_MOCK_URL=http://ros_mock:8000/routes
     depends_on:
       - db
       - rabbitmq
+      - ros_mock
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ros.rule=Host(`localhost`) && PathPrefix(`/ros`)"
@@ -131,5 +137,74 @@ services:
       - "traefik.http.routers.cms_mock.rule=Host(`localhost`) && PathPrefix(`/cms_mock`)"
       - "traefik.http.routers.cms_mock.entrypoints=web"
       - "traefik.http.services.cms_mock.loadbalancer.server.port=8000"
+    networks:
+      - default
+
+  ros_mock:
+    build: ./ros_mock
+    container_name: swiftlogistics-ros_mock-1
+    ports:
+      - "8003:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ros_mock.rule=Host(`localhost`) && PathPrefix(`/ros_mock`)"
+      - "traefik.http.routers.ros_mock.entrypoints=web"
+      - "traefik.http.services.ros_mock.loadbalancer.server.port=8000"
+    networks:
+      - default
+
+  wms_mock:
+    build: ./wms_mock
+    container_name: swiftlogistics-wms_mock-1
+    ports:
+      - "8006:8000"
+      - "9876:9876"  # WMS proprietary TCP/IP protocol port
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wms_mock.rule=Host(`localhost`) && PathPrefix(`/wms_mock`)"
+      - "traefik.http.routers.wms_mock.entrypoints=web"
+      - "traefik.http.services.wms_mock.loadbalancer.server.port=8000"
+    networks:
+      - default
+
+  tracking_service:
+    build: ./tracking_service
+    container_name: swiftlogistics-tracking-1
+    environment:
+      - DATABASE_URL=postgresql://swiftuser:swiftpassword@db:5432/swiftlogistics_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      - db
+      - rabbitmq
+    ports:
+      - "8004:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tracking.rule=Host(`localhost`) && PathPrefix(`/tracking`)"
+      - "traefik.http.routers.tracking.entrypoints=web"
+      - "traefik.http.services.tracking.loadbalancer.server.port=8000"
+    networks:
+      - default
+
+  transaction_service:
+    build: ./transaction_service
+    container_name: swiftlogistics-transaction-1
+    environment:
+      - DATABASE_URL=postgresql://swiftuser:swiftpassword@db:5432/swiftlogistics_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      - db
+      - rabbitmq
+      - order-service
+      - cms_adapter
+      - ros_adapter
+      - wms_adapter
+    ports:
+      - "8005:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.transaction.rule=Host(`localhost`) && PathPrefix(`/transactions`)"
+      - "traefik.http.routers.transaction.entrypoints=web"
+      - "traefik.http.services.transaction.loadbalancer.server.port=8000"
     networks:
       - default

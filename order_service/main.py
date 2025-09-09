@@ -28,6 +28,7 @@ class Order(BaseModel):
     customer_name: str
     product: str
     quantity: int
+    address: str
 
 def get_db_conn():
     try:
@@ -48,6 +49,7 @@ def init_db():
             customer_name VARCHAR(200),
             product VARCHAR(200),
             quantity INT,
+            address VARCHAR(500),
             created_at TIMESTAMP DEFAULT NOW()
         );
     """)
@@ -119,8 +121,8 @@ def create_order(order: Order):
         conn = get_db_conn()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO orders (customer_name, product, quantity) VALUES (%s, %s, %s) RETURNING id",
-            (order.customer_name, order.product, order.quantity)
+            "INSERT INTO orders (customer_name, product, quantity, address) VALUES (%s, %s, %s, %s) RETURNING id",
+            (order.customer_name, order.product, order.quantity, order.address)
         )
         order_id = cur.fetchone()[0]
         conn.commit()

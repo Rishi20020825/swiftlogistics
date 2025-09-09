@@ -1,6 +1,8 @@
-# swiftlogistics/cms_adapter/requirements.txt (and ros_adapter/requirements.txt)
+# swiftlogistics/wms_adapter/requirements.txt
 fastapi==0.103.0
 uvicorn==0.23.2
 aio-pika==9.0.5
 sqlalchemy==2.0.21
 psycopg2-binary==2.9.7
+asyncio==3.4.3
+pydantic==2.0.3
