@@ -125,3 +125,20 @@ services:
       - "traefik.http.services.order-service.loadbalancer.server.port=8001"
     networks:
       - default
+
+  tracking-service:
+    build: ./tracking_service
+    container_name: tracking-service
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - POSTGRES_DB=swiftlogistics_db
+      - POSTGRES_USER=swiftuser
+      - POSTGRES_PASSWORD=swiftpassword
+    depends_on:
+      - db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tracking-service.rule=PathPrefix(`/tracking`)"
+      - "traefik.http.services.tracking-service.loadbalancer.server.port=8002"

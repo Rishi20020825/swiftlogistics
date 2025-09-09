@@ -14,9 +14,6 @@ log = logging.getLogger("order-service")
 app = FastAPI(title="Order Service")
 
 # --- environment variables for configuration
-
-
-# --- environment variables for configuration
 DB_HOST = os.getenv("DB_HOST", "db")
 DB_NAME = os.getenv("POSTGRES_DB", "swiftlogistics_db")
 DB_USER = os.getenv("POSTGRES_USER", "swiftuser")
