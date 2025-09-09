@@ -30,6 +30,8 @@ services:
       - POSTGRES_DB=swiftlogistics_db
       - POSTGRES_USER=swiftuser
       - POSTGRES_PASSWORD=swiftpassword
+    ports:
+      - "5432:5432"
     networks:
       - default
 
@@ -51,12 +53,13 @@ services:
     build: ./cms_adapter
     container_name: swiftlogistics-cms_adapter-1
     environment:
-      - DATABASE_URL=postgresql://swiftuser:${POSTGRES_PASSWORD}@db:5432/swiftlogistics_db
-    env_file:
-      - .env
+      - DATABASE_URL=postgresql://swiftuser:swiftpassword@db:5432/swiftlogistics_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - CMS_MOCK_URL=http://cms_mock:8000/orders
     depends_on:
       - db
       - rabbitmq
+      - cms_mock
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.cms.rule=Host(`localhost`) && PathPrefix(`/cms`)"
@@ -69,9 +72,8 @@ services:
     build: ./wms_adapter
     container_name: swiftlogistics-wms_adapter-1
     environment:
-      - DATABASE_URL=postgresql://swiftuser:${POSTGRES_PASSWORD}@db:5432/swiftlogistics_db
-    env_file:
-      - .env
+      - DATABASE_URL=postgresql://swiftuser:swiftpassword@db:5432/swiftlogistics_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     depends_on:
       - db
       - rabbitmq
@@ -87,9 +89,8 @@ services:
     build: ./ros_adapter
     container_name: swiftlogistics-ros_adapter-1
     environment:
-      - DATABASE_URL=postgresql://swiftuser:${POSTGRES_PASSWORD}@db:5432/swiftlogistics_db
-    env_file:
-      - .env
+      - DATABASE_URL=postgresql://swiftuser:swiftpassword@db:5432/swiftlogistics_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     depends_on:
       - db
       - rabbitmq
@@ -104,10 +105,8 @@ services:
   order-service:
     build: ./order_service
     container_name: order-service
-    env_file:
-      - .env
     environment:
-      - DATABASE_URL=postgresql://swiftuser:${POSTGRES_PASSWORD}@db:5432/swiftlogistics_db
+      - DATABASE_URL=postgresql://swiftuser:swiftpassword@db:5432/swiftlogistics_db
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_USER=guest
       - RABBITMQ_PASSWORD=guest
@@ -119,5 +118,18 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.order-service.rule=PathPrefix(`/orders`)"
       - "traefik.http.services.order-service.loadbalancer.server.port=8001"
+    networks:
+      - default
+
+  cms_mock:
+    build: ./cms_mock
+    container_name: swiftlogistics-cms_mock-1
+    ports:
+      - "8002:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cms_mock.rule=Host(`localhost`) && PathPrefix(`/cms_mock`)"
+      - "traefik.http.routers.cms_mock.entrypoints=web"
+      - "traefik.http.services.cms_mock.loadbalancer.server.port=8000"
     networks:
       - default
