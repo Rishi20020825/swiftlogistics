@@ -92,6 +92,20 @@ async def consume_messages():
         asyncio.create_task(consume_messages())  # Retry connecting# Helper functions for XML conversion
 def dict_to_soap(order):
     items_xml = ''.join([f'<Item>{item}</Item>' for item in order.get('items', [])])
+    
+    # Build additional fields that should be included in the SOAP message
+    additional_fields = ''
+    if order.get('tracking_id'):
+        additional_fields += f'<TrackingID>{order.get("tracking_id")}</TrackingID>'
+    if order.get('created_at'):
+        additional_fields += f'<CreatedAt>{order.get("created_at")}</CreatedAt>'
+    if order.get('estimated_delivery'):
+        additional_fields += f'<EstimatedDelivery>{order.get("estimated_delivery")}</EstimatedDelivery>'
+    if order.get('total_price') is not None:
+        additional_fields += f'<TotalPrice>{order.get("total_price")}</TotalPrice>'
+    if order.get('status'):
+        additional_fields += f'<Status>{order.get("status")}</Status>'
+    
     return f'''<?xml version="1.0"?>
     <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
       <soap:Body>
@@ -100,6 +114,7 @@ def dict_to_soap(order):
           <OrderID>{order.get('order_id')}</OrderID>
           <Items>{items_xml}</Items>
           <Address>{order.get('address')}</Address>
+          {additional_fields}
         </Order>
       </soap:Body>
     </soap:Envelope>'''
@@ -115,7 +130,8 @@ def soap_to_dict(xml_string):
         if order_resp is not None:
             return {
                 'order_id': order_resp.findtext('OrderID'),
-                'status': order_resp.findtext('Status')
+                'status': order_resp.findtext('Status'),
+                'tracking_id': order_resp.findtext('TrackingID')
             }
             
         orders_resp = body.find('OrdersResponse')
@@ -127,7 +143,11 @@ def soap_to_dict(xml_string):
                     'client': order_elem.findtext('Client'),
                     'status': order_elem.findtext('Status'),
                     'address': order_elem.findtext('Address'),
-                    'items': [item.text for item in order_elem.findall('Items/Item')]
+                    'items': [item.text for item in order_elem.findall('Items/Item')],
+                    'tracking_id': order_elem.findtext('TrackingID'),
+                    'created_at': order_elem.findtext('CreatedAt'),
+                    'estimated_delivery': order_elem.findtext('EstimatedDelivery'),
+                    'total_price': float(order_elem.findtext('TotalPrice')) if order_elem.findtext('TotalPrice') else None
                 }
                 result.append(order)
             return result
@@ -142,6 +162,11 @@ class OrderCreate(BaseModel):
     order_id: str
     items: list
     address: str
+    status: str = "Pending"
+    tracking_id: str = None
+    created_at: str = None
+    estimated_delivery: str = None
+    total_price: float = None
 
 @app.get("/cms/orders")
 async def get_orders():
